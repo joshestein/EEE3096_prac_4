@@ -6,13 +6,18 @@ from timeit import default_timer as timer
 #--------------------
 secure_btn = 23
 start_stop_btn = 24
+LED_unlock = 2
+LED_lock = 3
 
-CLK = 21
-MOSI = 20
-MISO = 19
-CS = 26
+CLK = 11
+MOSI = 10
+MISO = 9
+CS = 8
 mcp = Adafruit_MCP3008.MCP3008(clk=CLK, cs=CS, miso=MISO, mosi=MOSI)
 
+pot_channel = 5
+
+prev_voltage = 0
 start = True
 begin = 0.0
 end = 0.0
@@ -31,11 +36,31 @@ def setup():
     GPIO.setup(secure_btn, GPIO.IN, pull_up_down = GPIO.PUD_UP)
     GPIO.setup(start_stop_btn, GPIO.IN, pull_up_down = GPIO.PUD_UP)
 
+    GPIO.setup(LED_unlock, GPIO.OUT)
+    GPIO.setup(LED_lock, GPIO.OUT)
+    
+    GPIO.setup(MOSI, GPIO.OUT)
+    GPIO.setup(MISO, GPIO.IN)
+    GPIO.setup(CLK, GPIO.OUT)
+    GPIO.setup(CS, GPIO.OUT)
+
+
     GPIO.add_event_detect(start_stop_btn, GPIO.FALLING, callback=start_stop_callback, bouncetime=300)
+
+def read_pot(pot_voltage):
+    if pot_voltage > prev_voltage:
+        prev_voltage = pot_voltage
+        return "L"
+    else:
+        prev_voltage = pot_voltage
+        return "R"
 
 def main():
     setup()
+
     while start:
+        pot_voltage = mcp.read_adc(pot_channel)
+
         ### if pot input restart time
         end = timer()
 
