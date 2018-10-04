@@ -1,6 +1,7 @@
 import RPi.GPIO as GPIO
 import Adafruit_MCP3008
 from timeit import default_timer as timer
+import time
 
 # Constants
 #--------------------
@@ -28,10 +29,11 @@ def start_stop_callback(channel):
         start = False
     else:
         start = True
-        begin = timer()
+        begin = time.time()
 
 def setup():
     """Setup button, MCP and pot."""
+    global begin
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(secure_btn, GPIO.IN, pull_up_down = GPIO.PUD_UP)
     GPIO.setup(start_stop_btn, GPIO.IN, pull_up_down = GPIO.PUD_UP)
@@ -46,6 +48,7 @@ def setup():
 
 
     GPIO.add_event_detect(start_stop_btn, GPIO.FALLING, callback=start_stop_callback, bouncetime=300)
+    begin = timer()
 
 def read_pot(pot_voltage):
     if pot_voltage > prev_voltage:
@@ -56,7 +59,9 @@ def read_pot(pot_voltage):
         return "R"
 
 def main():
+    global start, begin, end
     setup()
+    print("Start: "+str(start))
 
     while start:
         pot_voltage = mcp.read_adc(pot_channel)
@@ -67,6 +72,6 @@ def main():
         if (end-begin) > 2:
             start = False
 
-if name == "__main__":
+if __name__ == "__main__":
     main()
 
