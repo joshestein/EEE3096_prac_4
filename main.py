@@ -16,9 +16,10 @@ MISO = 9
 CS = 8
 mcp = Adafruit_MCP3008.MCP3008(clk=CLK, cs=CS, miso=MISO, mosi=MOSI)
 
-pot_channel = 5
+pot_channel = 0
 
-prev_voltage = 0
+pot_tolerance = 20
+time_tolerance = 0.05
 start = True
 secure = False
 begin = 0.0
@@ -64,12 +65,10 @@ def setup():
     begin = timer()
     GPIO.add_event_detect(secure_btn, GPIO.FALLING, callback=secure_insecure_callback, bouncetime=300)
 
-def read_pot(pot_voltage):
-    if pot_voltage > prev_voltage:
-        prev_voltage = pot_voltage
+def get_direction(start_voltage, end_voltage):
+    if start_voltage > end_voltage:
         return "L"
     else:
-        prev_voltage = pot_voltage
         return "R"
 
 def check_times(secure):
@@ -94,14 +93,34 @@ def main():
     global start, begin, end, secure
     setup()
 
+    pot_voltage = mcp.read_adc(pot_channel)
+    prev_voltage = pot_voltage
+    
+
     while start:
-        pot_voltage = mcp.read_adc(pot_channel)
+        while abs(pot_voltage - prev_voltage) < tolerance:
+            # wait while pot is not moving
+            start_voltage = mcp.read_adc(pot_channel)
 
-        ### if pot input restart time
+            ### if pot input restart time
+            end = timer()
+            new_value = False
+            if (end-begin) > 2:
+                start = False
+                break
+
+        begin = timer()
+        while abs(pot_voltage - prev_voltage) > tolerance:
+            # wait while pot is moving
+            end_voltage = mcp.read_adc(pot_channel)
+            new_value = True
+    
         end = timer()
+        if new_value:
+            user_times.append(end-begin)
+            user_directions.append(get_direction(start_voltage, end_voltage))§
+            new_value = False
 
-        if (end-begin) > 2:
-            start = False
     
     if (check_times(secure) and check_positions(secure)):
         #TODO: success!
