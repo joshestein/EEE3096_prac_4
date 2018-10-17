@@ -18,8 +18,8 @@ mcp = Adafruit_MCP3008.MCP3008(clk=CLK, cs=CS, miso=MISO, mosi=MOSI)
 
 pot_channel = 0
 
-pot_tolerance = 10
-time_tolerance = 0.05
+pot_tolerance = 30
+time_tolerance = 100 #very big for testing
 start = True
 secure = False
 begin = 0.0
@@ -27,8 +27,14 @@ end = 0.0
 user_times = []
 user_directions = []
 
-code_times = [200, 200, 1000] #in ms
+code_times = [300, 300, 300] #in ms
 code_directions = ["L", "L", "R"]
+
+def reset():
+    global begin, user_times, user_directions
+    begin = timer()
+    user_times = []
+    user_directions = []
 
 def start_stop_callback(channel):
     global start, begin
@@ -36,20 +42,23 @@ def start_stop_callback(channel):
         start = False
     else:
         start = True
-        begin = time.time()
-        user_times = []
-        user_directions = []
 
 def secure_insecure_callback(channel):
     global secure
     if secure:
         secure = False
+        print("---------------------")
+        print("Switched to INSECURE mode")
+        print("---------------------")
     else:
         secure = True
+        print("---------------------")
+        print("Switched to SECURE mode")
+        print("---------------------")
+    reset()
 
 def setup():
     """Setup button, MCP and pot."""
-    global begin
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(secure_btn, GPIO.IN, pull_up_down = GPIO.PUD_UP)
     GPIO.setup(start_stop_btn, GPIO.IN, pull_up_down = GPIO.PUD_UP)
@@ -64,7 +73,8 @@ def setup():
 
     GPIO.add_event_detect(start_stop_btn, GPIO.FALLING, callback=start_stop_callback, bouncetime=300)
     GPIO.add_event_detect(secure_btn, GPIO.FALLING, callback=secure_insecure_callback, bouncetime=300)
-    begin = timer()
+
+    reset()
 
 def get_direction(start_voltage, end_voltage):
     if start_voltage > end_voltage:
@@ -78,7 +88,7 @@ def check_times(secure):
         #TODO: sort user times, code times
         pass
     for i in range(0, len(user_times)):
-        if user_times[i] != code_times[i]:
+        if abs(user_times[i] - code_times[i]) > time_tolerance:
             return False 
     return True
 
@@ -116,8 +126,6 @@ def main():
             end = timer()
             new_value = False
             time.sleep(0.3)
-            print(end_voltage)
-
 #            if (end-begin) > 2:
                 # two seconds have elapsed, quit
                 # start = False
@@ -143,19 +151,38 @@ def main():
         if new_value:
             print("Start voltage: "+str(start_voltage))
             print("End voltage; "+str(new_start))
-            user_times.append(end-begin)
+            user_times.append((end-begin)*1000)
             print(end-begin)
             user_directions.append(get_direction(start_voltage, end_voltage))
             new_value = False
             start_voltage = mcp.read_adc(pot_channel)
             end_voltage = mcp.read_adc(pot_channel)
+        if (len(user_directions) == len(code_directions)) or len(user_directions) >= 16:
+            break
     
+    print("User times")
+    print("-------------------------------------------------")
+    print(user_times)
+    print("User directions")
+    print("-------------------------------------------------")
+    print(user_directions)
+    print("-------------------------------------------------")
+    print("-------------------------------------------------")
+    print("-------------------------------------------------")
     if (check_times(secure) and check_positions(secure)):
-        #TODO: success!
-        pass
+        print("Success biatch")
+        GPIO.output(LED_unlock, GPIO.HIGH)
+        time.sleep(2)
+        GPIO.output(LED_unlock, GPIO.LOW)
+        #TODO play unlock
     else:
-        #TODO: waa waa waaaaa    
+        print("Do better")
+        GPIO.output(LED_lock, GPIO.HIGH)
+        time.sleep(2)
+        GPIO.output(LED_lock, GPIO.LOW)
+        #TODO play lock
         pass
+    GPIO.cleanup()
 
 if __name__ == "__main__":
     main()
