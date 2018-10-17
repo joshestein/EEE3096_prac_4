@@ -18,7 +18,7 @@ mcp = Adafruit_MCP3008.MCP3008(clk=CLK, cs=CS, miso=MISO, mosi=MOSI)
 
 pot_channel = 0
 
-pot_tolerance = 20
+pot_tolerance = 10
 time_tolerance = 0.05
 start = True
 secure = False
@@ -37,6 +37,8 @@ def start_stop_callback(channel):
     else:
         start = True
         begin = time.time()
+        user_times = []
+        user_directions = []
 
 def secure_insecure_callback(channel):
     global secure
@@ -60,32 +62,33 @@ def setup():
     GPIO.setup(CLK, GPIO.OUT)
     GPIO.setup(CS, GPIO.OUT)
 
-
     GPIO.add_event_detect(start_stop_btn, GPIO.FALLING, callback=start_stop_callback, bouncetime=300)
-    begin = timer()
     GPIO.add_event_detect(secure_btn, GPIO.FALLING, callback=secure_insecure_callback, bouncetime=300)
+    begin = timer()
 
 def get_direction(start_voltage, end_voltage):
     if start_voltage > end_voltage:
-        return "L"
-    else:
         return "R"
+    else:
+        return "L"
 
 def check_times(secure):
     global user_times, code_times
     if secure == False:
         #TODO: sort user times, code times
+        pass
     for i in range(0, len(user_times)):
         if user_times[i] != code_times[i]:
             return False 
     return True
 
 def check_positions(secure):
-    global user_positions, code_positions
+    global user_directions, code_positions
     if secure == False:
         #TODO: sort user positions, code_positions
-    for i in range(0, len(user_positions)):
-        if user_positions[i] != user_positions[i]:
+        pass
+    for i in range(0, len(user_directions)):
+        if user_directions[i] != user_directions[i]:
             return False 
     return True
 
@@ -93,39 +96,66 @@ def main():
     global start, begin, end, secure
     setup()
 
-    pot_voltage = mcp.read_adc(pot_channel)
-    prev_voltage = pot_voltage
-    
+    start_voltage = mcp.read_adc(pot_channel)
+    end_voltage = mcp.read_adc(pot_channel)
+    new_end = mcp.read_adc(pot_channel)
+    new_value = True
 
     while start:
-        while abs(pot_voltage - prev_voltage) < tolerance:
+        print("User times")
+        print("-------------------------------------------------")
+        print(user_times)
+        print("User directions")
+        print("-------------------------------------------------")
+        print(user_directions)
+        while abs(end_voltage - start_voltage) < pot_tolerance:
             # wait while pot is not moving
-            start_voltage = mcp.read_adc(pot_channel)
+            end_voltage = mcp.read_adc(pot_channel)
 
             ### if pot input restart time
             end = timer()
             new_value = False
-            if (end-begin) > 2:
-                start = False
-                break
+            time.sleep(0.3)
+            print(end_voltage)
+
+#            if (end-begin) > 2:
+                # two seconds have elapsed, quit
+                # start = False
+                # break
 
         begin = timer()
-        while abs(pot_voltage - prev_voltage) > tolerance:
+        new_start = mcp.read_adc(pot_channel)
+        new_end = mcp.read_adc(pot_channel)
+
+        while abs(start_voltage-new_start) > pot_tolerance:
             # wait while pot is moving
-            end_voltage = mcp.read_adc(pot_channel)
+            new_end = mcp.read_adc(pot_channel)
             new_value = True
+            time.sleep(0.3)
+            new_start = mcp.read_adc(pot_channel)
+            if abs(new_end-new_start) < pot_tolerance:
+                break
+            
+            #if (end-begin) > 1:
+            #    break
     
         end = timer()
         if new_value:
+            print("Start voltage: "+str(start_voltage))
+            print("End voltage; "+str(new_start))
             user_times.append(end-begin)
-            user_directions.append(get_direction(start_voltage, end_voltage))§
+            print(end-begin)
+            user_directions.append(get_direction(start_voltage, end_voltage))
             new_value = False
-
+            start_voltage = mcp.read_adc(pot_channel)
+            end_voltage = mcp.read_adc(pot_channel)
     
     if (check_times(secure) and check_positions(secure)):
         #TODO: success!
+        pass
     else:
         #TODO: waa waa waaaaa    
+        pass
 
 if __name__ == "__main__":
     main()
