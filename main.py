@@ -18,7 +18,7 @@ mcp = Adafruit_MCP3008.MCP3008(clk=CLK, cs=CS, miso=MISO, mosi=MOSI)
 
 pot_channel = 0
 
-pot_tolerance = 30
+pot_tolerance = 10
 time_tolerance = 0.05
 start = True
 secure = False
@@ -62,10 +62,9 @@ def setup():
     GPIO.setup(CLK, GPIO.OUT)
     GPIO.setup(CS, GPIO.OUT)
 
-
     GPIO.add_event_detect(start_stop_btn, GPIO.FALLING, callback=start_stop_callback, bouncetime=300)
-    begin = timer()
     GPIO.add_event_detect(secure_btn, GPIO.FALLING, callback=secure_insecure_callback, bouncetime=300)
+    begin = timer()
 
 def get_direction(start_voltage, end_voltage):
     if start_voltage > end_voltage:
@@ -99,6 +98,7 @@ def main():
 
     start_voltage = mcp.read_adc(pot_channel)
     end_voltage = mcp.read_adc(pot_channel)
+    new_end = mcp.read_adc(pot_channel)
     new_value = True
 
     while start:
@@ -109,27 +109,33 @@ def main():
             ### if pot input restart time
             end = timer()
             new_value = False
-            print("Same volt: "+str(start_voltage))
-            time.sleep(0.5)
-            if (end-begin) > 2:
-                break
+            time.sleep(0.3)
+
+#            if (end-begin) > 2:
+                # two seconds have elapsed, quit
+                # start = False
+                # break
 
         begin = timer()
-        temp_volt = mcp.read_adc(pot_channel)
-        print("Temp: "+str(temp_volt))
-        while abs(end_voltage - temp_volt) > pot_tolerance:
+        new_start = mcp.read_adc(pot_channel)
+        new_end = mcp.read_adc(pot_channel)
+
+        while abs(start_voltage-new_start) > pot_tolerance:
             # wait while pot is moving
-            end_volt = mcp.read_adc(pot_channel)
-            print("End voltage: "+str(end_voltage))
+            new_end = mcp.read_adc(pot_channel)
             new_value = True
-            time.sleep(0.5)
-            if (end-begin) > 1:
+            time.sleep(0.3)
+            new_start = mcp.read_adc(pot_channel)
+            if abs(new_end-new_start) < pot_tolerance:
                 break
+            
+            #if (end-begin) > 1:
+            #    break
     
         end = timer()
         if new_value:
             print("Start voltage: "+str(start_voltage))
-            print("End voltage; "+str(end_voltage))
+            print("End voltage; "+str(new_start))
             user_times.append(end-begin)
             print(end-begin)
             user_directions.append(get_direction(start_voltage, end_voltage))
