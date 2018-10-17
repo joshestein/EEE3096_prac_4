@@ -68,9 +68,9 @@ def setup():
 
 def get_direction(start_voltage, end_voltage):
     if start_voltage > end_voltage:
-        return "L"
-    else:
         return "R"
+    else:
+        return "L"
 
 def check_times(secure):
     global user_times, code_times
@@ -102,6 +102,12 @@ def main():
     new_value = True
 
     while start:
+        print("User times")
+        print("-------------------------------------------------")
+        print(user_times)
+        print("User directions")
+        print("-------------------------------------------------")
+        print(user_directions)
         while abs(end_voltage - start_voltage) < pot_tolerance:
             # wait while pot is not moving
             end_voltage = mcp.read_adc(pot_channel)
@@ -110,6 +116,7 @@ def main():
             end = timer()
             new_value = False
             time.sleep(0.3)
+            print(end_voltage)
 
 #            if (end-begin) > 2:
                 # two seconds have elapsed, quit
