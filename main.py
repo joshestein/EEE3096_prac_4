@@ -21,8 +21,10 @@ pot_channel = 0
 
 pot_tolerance = 30
 time_tolerance = 100 #very big for testing
-start = True
-secure = False
+start = False
+secure = True
+lock_status = "unlocked"
+
 begin = 0.0
 end = 0.0
 user_times = []
@@ -31,13 +33,18 @@ user_directions = []
 code_times = [300, 300, 300] #in ms
 code_directions = ["L", "L", "R"]
 
-def reset():
-    global begin, user_times, user_directions, start, secure
+def clear():
+    global begin, user_times, user_directions
     begin = timer()
     user_times = []
     user_directions = []
+
+def reset():
+    global start, secure
+    clear()
     start = False
     secure = True
+    print("Resetting to SECURE mode")
 
 def start_stop_callback(channel):
     global start 
@@ -48,6 +55,7 @@ def start_stop_callback(channel):
         print("---------------------")
         print("Starting")
         print("---------------------")
+    clear()
 
 def secure_insecure_callback(channel):
     global secure
@@ -61,7 +69,7 @@ def secure_insecure_callback(channel):
         print("---------------------")
         print("Switched to SECURE mode")
         print("---------------------")
-    reset()
+    clear()
 
 def setup():
     """Setup button, MCP and pot."""
@@ -80,6 +88,7 @@ def setup():
     GPIO.add_event_detect(start_stop_btn, GPIO.FALLING, callback=start_stop_callback, bouncetime=500)
     GPIO.add_event_detect(secure_btn, GPIO.FALLING, callback=secure_insecure_callback, bouncetime=300)
 
+    print("Starting in UNLOCKED state")
     reset()
 
 def get_direction(start_voltage, end_voltage):
@@ -108,26 +117,41 @@ def check_positions():
             return False 
     return True
 
-def validate():
-    global secure
-    if pygmae.mixer.get_init() == None:
+def success():
+    global lock_status
+    if pygame.mixer.get_init() == None:
         pygame.mixer.init()
-    if (check_times() and check_positions()):
-        print("Success biatch")
-        GPIO.output(LED_unlock, GPIO.HIGH)
-        time.sleep(2)
-        GPIO.output(LED_unlock, GPIO.LOW)
-        pygame.mixer.music.load("Unlock.mp3")
-    else:
-        print("Do better")
+    print("Success biatch")
+    if lock_status == "unlocked":
         GPIO.output(LED_lock, GPIO.HIGH)
         time.sleep(2)
         GPIO.output(LED_lock, GPIO.LOW)
         pygame.mixer.music.load("Lock.mp3")
+        lock_status = "locked"
+        print("****************************")
+        print("Changed to a LOCKED state")
+        print("****************************")
+    else:
+        GPIO.output(LED_unlock, GPIO.HIGH)
+        time.sleep(2)
+        GPIO.output(LED_unlock, GPIO.LOW)
+        pygame.mixer.music.load("Unlock.mp3")
+        lock_status = "unlocked"
+        print("****************************")
+        print("Changed to an UNLOCKED state")
+        print("****************************")
     pygame.mixer.music.play()
     while pygame.mixer.music.get_busy():
         continue
-    
+
+def fail():
+    print("Do better")
+    if pygame.mixer.get_init() == None:
+        pygame.mixer.init()
+    pygame.mixer.music.load("Wrong.mp3")
+    pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy():
+        continue
 
 def main():
     global start, begin, end, secure
@@ -162,8 +186,9 @@ def main():
                     time.sleep(0.3)
 
                 if timeout:
-                    reset()
+                    clear()
                     print("Timeout")
+                    start = False
                     break
                 begin = timer() # end button
 
@@ -196,10 +221,12 @@ def main():
                     print("-------------------------------------------------")
                     print(user_directions)
                     print("-------------------------------------------------")
-                    print("-------------------------------------------------")
-                    print("-------------------------------------------------")
-                    validate()
-                    reset()
+                    if (check_times() and check_positions()):
+                        success()
+                    else:
+                        fail()
+                    clear()
+                    start = False
                     break
     except KeyboardInterrupt:
         GPIO.cleanup()
