@@ -8,6 +8,7 @@ import time
 #--------------------
 secure_btn = 23
 start_stop_btn = 24
+custom_code_btn = 22
 LED_unlock = 2
 LED_lock = 3
 
@@ -23,6 +24,8 @@ pot_tolerance = 30
 time_tolerance = 100 #very big for testing
 start = False
 secure = True
+custom_code = False
+code_length = 3
 lock_status = "unlocked"
 
 begin = 0.0
@@ -40,10 +43,11 @@ def clear():
     user_directions = []
 
 def reset():
-    global start, secure
+    global start, secure, custom_code
     clear()
     start = False
     secure = True
+    custom_code = False
     print("Resetting to SECURE mode")
 
 def start_stop_callback(channel):
@@ -71,11 +75,24 @@ def secure_insecure_callback(channel):
         print("---------------------")
     clear()
 
+def custom_code_callback(channel):
+    global custom_code, start, code_directions, code_times, code_length
+    if custom_code == False:
+        custom_code = True
+        code_directions = []
+        code_times = []
+        code_length = input("Please enter the desired length of your code:\n")
+        print("\nPlease enter your code")
+        start = True
+    else:
+        custom_Code = False
+    
 def setup():
     """Setup button, MCP and pot."""
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(secure_btn, GPIO.IN, pull_up_down = GPIO.PUD_UP)
     GPIO.setup(start_stop_btn, GPIO.IN, pull_up_down = GPIO.PUD_UP)
+    GPIO.setup(custom_code_btn, GPIO.IN, pull_up_down = GPIO.PUD_UP)
 
     GPIO.setup(LED_unlock, GPIO.OUT)
     GPIO.setup(LED_lock, GPIO.OUT)
@@ -87,6 +104,7 @@ def setup():
 
     GPIO.add_event_detect(start_stop_btn, GPIO.FALLING, callback=start_stop_callback, bouncetime=500)
     GPIO.add_event_detect(secure_btn, GPIO.FALLING, callback=secure_insecure_callback, bouncetime=300)
+    GPIO.add_event_detect(custom_code_btn, GPIO.FALLING, callback=custom_code_callback, bouncetime=300)
 
     print("Starting in UNLOCKED state")
     reset()
@@ -154,7 +172,7 @@ def fail():
         continue
 
 def main():
-    global start, begin, end, secure
+    global start, begin, end, secure, code_length, custom_code
     setup()
 
     try:
@@ -165,12 +183,12 @@ def main():
             time.sleep(0.2)
             while start:
                 begin = timer()
-                print("User times")
-                print("-------------------------------------------------")
-                print(user_times)
-                print("User directions")
-                print("-------------------------------------------------")
-                print(user_directions)
+                #print("User times")
+                #print("-------------------------------------------------")
+                #print(user_times)
+                #print("User directions")
+                #print("-------------------------------------------------")
+                #print(user_directions)
                 timeout = False
                 while abs(end_voltage - start_voltage) < pot_tolerance:
                     # wait while pot is not moving
@@ -206,28 +224,40 @@ def main():
                     
                 end = timer() # end timer
                 if new_value:
-                    user_times.append((end-begin)*1000)
-                    user_directions.append(get_direction(start_voltage, end_voltage))
+                    if custom_code:
+                        code_times.append((end-begin)*1000)
+                        code_directions.append(get_direction(start_voltage, end_voltage))
+                    else:
+                        user_times.append((end-begin)*1000)
+                        user_directions.append(get_direction(start_voltage, end_voltage))
                     new_value = False
                     
                     # reset voltages to new position
                     start_voltage = mcp.read_adc(pot_channel)
                     end_voltage = mcp.read_adc(pot_channel)
-                if (len(user_directions) == len(code_directions)) or len(user_directions) >= 16:
-                    print("User times")
-                    print("-------------------------------------------------")
-                    print(user_times)
-                    print("User directions")
-                    print("-------------------------------------------------")
-                    print(user_directions)
-                    print("-------------------------------------------------")
-                    if (check_times() and check_positions()):
-                        success()
-                    else:
-                        fail()
-                    clear()
-                    start = False
-                    break
+                if custom_code:
+                    if len(code_times) == code_length:
+                        print("Succesfully entered custom code")
+                        print(code_times)
+                        print(code_directions)
+                        reset()
+                        break
+                else:
+                    if (len(user_directions) == len(code_directions)) or len(user_directions) >= 16:
+                        print("User times")
+                        print("-------------------------------------------------")
+                        print(user_times)
+                        print("User directions")
+                        print("-------------------------------------------------")
+                        print(user_directions)
+                        print("-------------------------------------------------")
+                        if (check_times() and check_positions()):
+                            success()
+                        else:
+                            fail()
+                        clear()
+                        start = False
+                        break
     except KeyboardInterrupt:
         GPIO.cleanup()
 
