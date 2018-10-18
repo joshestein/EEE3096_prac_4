@@ -85,6 +85,8 @@ def get_direction(start_voltage, end_voltage):
 def check_times(secure):
     global user_times, code_times
     if secure == False:
+        user_times.sort()
+        code_times.sort()
         #TODO: sort user times, code times
         pass
     for i in range(0, len(user_times)):
@@ -95,7 +97,8 @@ def check_times(secure):
 def check_positions(secure):
     global user_directions, code_positions
     if secure == False:
-        #TODO: sort user positions, code_positions
+        # insecure mode is not position dependent
+        return True
         pass
     for i in range(0, len(user_directions)):
         if user_directions[i] != user_directions[i]:
@@ -108,7 +111,6 @@ def main():
 
     start_voltage = mcp.read_adc(pot_channel)
     end_voltage = mcp.read_adc(pot_channel)
-    new_end = mcp.read_adc(pot_channel)
     new_value = True
 
     while start:
@@ -131,7 +133,9 @@ def main():
                 # start = False
                 # break
 
+        # start timer
         begin = timer()
+
         new_start = mcp.read_adc(pot_channel)
         new_end = mcp.read_adc(pot_channel)
 
@@ -147,6 +151,7 @@ def main():
             #if (end-begin) > 1:
             #    break
     
+        # end timer
         end = timer()
         if new_value:
             print("Start voltage: "+str(start_voltage))
