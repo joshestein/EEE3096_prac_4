@@ -1,5 +1,6 @@
 import RPi.GPIO as GPIO
 import Adafruit_MCP3008
+import pygame
 from timeit import default_timer as timer
 import time
 
@@ -109,19 +110,23 @@ def check_positions():
 
 def validate():
     global secure
+    if pygmae.mixer.get_init() == None:
+        pygame.mixer.init()
     if (check_times() and check_positions()):
         print("Success biatch")
         GPIO.output(LED_unlock, GPIO.HIGH)
         time.sleep(2)
         GPIO.output(LED_unlock, GPIO.LOW)
-        #TODO play unlock
+        pygame.mixer.music.load("Unlock.mp3")
     else:
         print("Do better")
         GPIO.output(LED_lock, GPIO.HIGH)
         time.sleep(2)
         GPIO.output(LED_lock, GPIO.LOW)
-        #TODO play lock
-        pass
+        pygame.mixer.music.load("Lock.mp3")
+    pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy():
+        continue
     
 
 def main():
