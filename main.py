@@ -4,8 +4,8 @@ import pygame
 from timeit import default_timer as timer
 import time
 
-# Constants
-#--------------------
+#---------------------------------- Constants ----------------------------------#
+
 secure_btn = 23
 start_stop_btn = 24
 custom_code_btn = 22
@@ -20,6 +20,8 @@ mcp = Adafruit_MCP3008.MCP3008(clk=CLK, cs=CS, miso=MISO, mosi=MOSI)
 
 pot_channel = 0
 
+#------------------------------ Global Variables -------------------------------#
+
 pot_tolerance = 30
 time_tolerance = 100 #very big for testing
 start = False
@@ -33,16 +35,22 @@ end = 0.0
 user_times = []
 user_directions = []
 
+#---------------------------- Default code sequence ----------------------------#
+
 code_times = [300, 300, 300] #in ms
 code_directions = ["L", "L", "R"]
 
+#---------------------------------- Functions ----------------------------------#
+
 def clear():
+    """Clear user entered data"""
     global begin, user_times, user_directions
     begin = timer()
     user_times = []
     user_directions = []
 
 def reset():
+    """Method to reset all variables to default values"""
     global start, secure, custom_code
     clear()
     start = False
@@ -51,6 +59,7 @@ def reset():
     print("Resetting to SECURE mode")
 
 def start_stop_callback(channel):
+    """Method to activate start mode after button press"""
     global start 
     if start:
         start = False
@@ -62,6 +71,7 @@ def start_stop_callback(channel):
     clear()
 
 def secure_insecure_callback(channel):
+    """Method to toggle secure/insecure mode after button press."""
     global secure
     if secure:
         secure = False
@@ -76,6 +86,7 @@ def secure_insecure_callback(channel):
     clear()
 
 def custom_code_callback(channel):
+    """Method to set custom code after button press."""
     global custom_code, start, code_directions, code_times, code_length
     if custom_code == False:
         custom_code = True
@@ -110,12 +121,14 @@ def setup():
     reset()
 
 def get_direction(start_voltage, end_voltage):
+    """Method to get the direction based on change in voltage"""
     if start_voltage > end_voltage:
         return "R"
     else:
         return "L"
 
 def check_times():
+    """Method to compare user entered times and code times"""
     global user_times, code_times, secure
     if secure == False:
         user_times.sort()
@@ -126,6 +139,7 @@ def check_times():
     return True
 
 def check_positions():
+    """Method to compare user entered directions and code directions"""
     global user_directions, code_directions, secure
     if secure == False:
         # insecure mode is not position dependent
@@ -136,6 +150,7 @@ def check_positions():
     return True
 
 def success():
+    """Method to indicate lock status upon succeessfully entered code, and play corresponding sound"""
     global lock_status
     if pygame.mixer.get_init() == None:
         pygame.mixer.init()
@@ -163,6 +178,7 @@ def success():
         continue
 
 def fail():
+    """Method to indictae incorrectly entered code and play corresponding sound"""
     print("Do better")
     if pygame.mixer.get_init() == None:
         pygame.mixer.init()
@@ -170,6 +186,8 @@ def fail():
     pygame.mixer.music.play()
     while pygame.mixer.music.get_busy():
         continue
+
+#--------------------------------- Main --------------------------------#
 
 def main():
     global start, begin, end, secure, code_length, custom_code
@@ -197,7 +215,7 @@ def main():
                     ### if pot input restart time
                     end = timer()
                     if (end-begin) > 4:
-                     # two seconds have elapsed, quit
+                         # four seconds have elapsed, quit
                          timeout = True
                          break
                     new_value = False
